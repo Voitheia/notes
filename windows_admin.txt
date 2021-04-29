@@ -1,0 +1,381 @@
+Netsh advfirewall firewall set rule group=”Windows Firewall Remote Management” new enable =yes
+    Core is scary
+
+DISABLE SMBV1
+Disable-WindowsOptionalFeature -Online -FeatureName smb1protocol
+Set-SmbServerConfiguration -EnableSMB1Protocol $false
+
+Use procexp to back up necessary dlls
+
+FIREWALL RULES WE NEED (in and out)
+All traffic to 10.120.0.201
+TCP traffic on 80 and 443 to 10.120.0.111
+ICMP from 10.120.0.0/16
+
+MAKE PROCMON FILTER FOR REG CHANGES
+
+NLA: Computer Configuration\Policies\Administrative Templates\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Security
+
+reg add HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\WDigest /v UseLogonCredential /t REG_DWORD /d 0
+reg add HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\WDigest /v Negotiate /t REG_DWORD /d 0
+
+HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy
+
+HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer /v DisallowRun
+
+Computer Configuration\Windows Settings\Security Settings\Local Policies\User Rights Assignment
+
+----------------------------------------------------------------------------------------------------------------------------
+
+First part is a general overview:
+this part is in order:
+Update your service passwords first since box passwords are strong
+check users and groups
+lusrmgr.msc
+Firewall
+wf.msc
+Services securing first time around
+
+MAKE BACKUPS OF IMPORTANT STUFF
+
+this part is less in order:
+processes, task manager, msconfig
+Unshare C drive
+My computer > right click on C drive > properties > unshare
+task scheduler
+Taskschd.msc
+c:/windows/system32/tasks
+HKLM\Software\Microsoft\Windows NT\CurrentVersion\Schedule\Taskcache\Tasks
+HKLM\Software\Microsoft\Windows NT\CurrentVersion\Schedule\Taskcache\Tree
+services - delete files of bad services
+local and group policy
+Secpol.msc
+Lusrmgr.msc
+Gpedit.msc
+account lockout policy, password policy
+check rdp settings, enable NLA, make accessable for certain users?
+more service hardening
+for the server 2016 take a look at defender
+
+make a snapshot here?
+
+this part is not in order:
+sysinternals
+hidden files
+shared folders
+disable ipv6
+wsus offline
+greatis (dll redir)
+check persistence
+
+----------------------------------------------------------------------------------------------------------------------------
+
+This part is more nitty-gritty with commands
+
+Users and Groups
+change admin password first
+net user Administrator <password>
+this will change the password of Administrator to <password>
+check users - disable anything unnecessary
+Get-LocalUser
+display local users on the computer
+lusrmgr.msc
+opens local users and groups manager
+Remove-LocalUser -Name "Name"
+removes user "Name"
+check groups - disable anything unnecessary
+Get-LocalGroup
+display local groups on the computer
+Get-LocalGroupMember -Group "Administrators"
+display the users in the "Administrators" group
+Remove-LocalGroup -Name "SecurityGroup04"
+removes group "SecurityGroup04"
+Remove-LocalGroupMember -Group "Administrators" -Member "Admin02", "MicrosoftAccount\username@Outlook.com", "AzureAD\DavidChew@contoso.com", "CONTOSO\Domain Admins"
+removes a target user from a specified group
+disable Administrator account and make own
+net user administrator /active:no
+you probably shouldn't do this while you are logged in as administrator
+disables default administrator account
+net user guest /active:no
+disables default guest account
+$Password = Read-Host -AsSecureString
+this sets $Password as a password for the user you're creating in the next command
+New-LocalUser "User" -Password $Password
+creates a new user "User" with the previously set $Password
+Add-LocalGroupMember -Group "Administrators" -Member "User"
+adds User to Administrators group
+Use secpol.msc to configure lockout policy and password policy
+Disable guest account
+maybe have a backup user too
+
+Some useful fun stuff
+Use event viewer to see if user accounts were created (Must run command as admin)
+wevtutil qe security /q:”*[System[(EventID=4720)]]” /c:5 /f:text /rd:true
+Prevent access to cmd/regedit tools
+run > gpedit.msc > User config > admin templates > system > prevent access to the command prompt/access to registry editing tools
+Remove logoff from start menu and prevent access to shutdown
+run > gpedit.msc > User config > admin templates > start menu and task bar > remove logoff from start menu/remove and prevent access to the shut down command
+Remove logoff
+run > gpedit.msc > User config > admin templates > system > ctrl+alt+del+options > remove logoff
+Check remote users
+qwinsta /server:SERVERIP
+Kill remote users
+rwinsta /server:SERVERIP SESSIONID
+Disable unnecessary services
+Pkgmgr /uu:”TelnetServer”
+How to restore snapins
+Cmd > mmc.exe > file > add > select what you want
+How to restore explorer.exe 
+Ctrl+shift+esc > start a program > explorer.exe
+Disable DCOM
+Run > dcomcnfg > Component Services > Computers > Right Click My Computer > Properties > COM Security > Under Launch and Activation Permissions > Edit limits and Edit default > Go through every user/group and uncheck “Allow” for Remote Launch and Remote Activation, Do not check Deny
+Constrained language mode for powershell:
+[Environment]::SetEnvironmentVariable(‘__PSLockdownPolicy‘, ‘4’, ‘Machine‘)
+I think you just run this as administrator in powershell
+Create hidden folder for backups
+mkdir C:\Users\Administrator\Temp
+cd C:\Users\Administrator\Temp
+attrib +h +r 
+move C:\*.wfw C:\Users\Administrator\Temp
+Move database files to here
+attrib +h +r *
+Get-WmiObject -Class Win32_Share
+Find shares on the box
+
+Firewall
+https://zamarax.com/2020/11/04/configuring-windows-firewall-rules-with-powershell/ 
+Get-NetFirewallProfile
+display info about firewall
+Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled True
+this turns on the firewall
+make backup of original firewall
+CMD: netsh advfirewall export “C:\originalFirewall.wfw”
+this will make a backup of the firewall and put it in “C:\originalFirewall.wfw”
+edit firewall rules
+Get-NetFirewallRule | Select-Object DisplayName, Enabled, Direction, Action -First 100
+this will spit out the first 100 firewall rules
+I feel like this is a lot easier to do with gui
+-figure out how to do this in powershell
+make backup of new firewall rules
+CMD: netsh advfirewall export “C:\originalFirewall.wfw”
+this will make a backup of the firewall and put it in “C:\originalFirewall.wfw”
+enable logging for firewall
+-figure out how to do this in powershell
+in GUI, this is just in the firewall properties
+Import firewall rules: netsh advfirewall import "C:\fw-rules.wfw"
+Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled True -DefaultInboundAction Block -DefaultOutboundAction Block -NotifyOnListen True -LogAllowed True -LogBlocked True -LogFileName %SystemRoot%\System32\LogFiles\Firewall\pfirewall.log
+big boy does a thing
+
+RDP
+cmd: systempropertiesremote
+This opens up a dialogue box that lets you edit rdp stuff, better to use the below link
+enable NLA
+Check riptidehosting link below
+restrict which users can access it
+maybe make new group for rdp users that isnt a default
+https://www.riptidehosting.com/blog/rd-session-host-security-settings-in-windows-server-2016/
+registry holds rdp destinations - haven’t looked into this
+Remote credential guard:
+reg add HKLM\SYSTEM\CurrentControlSet\Control\Lsa /v DisableRestrictedAdmin /d 0 /t REG_DWORD
+Computer Configuration -> Administrative Templates -> System -> Credentials Delegation -> Restrict delegation of credentials to remote servers
+Enabled, require restricted admin
+
+Registry
+Very Bad
+HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\WDigest UseLogonCredential
+cleartext passwords in memory
+HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System EnableLUA
+Does a thing
+HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System ConsentPromptBehaviorAdmin
+disables UAC
+HKLM\SOFTWARE\Policies\Microsoft\Windows Defender DisableAntiSpyware
+disables windows defender
+HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System FilterAdministratorToken
+allow access to admin shares
+HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Windows AppInit_DLLs
+Probably funky dll stuff
+HKLM\SOFTWARE\Wow6432node\microsoft\WindowsNT\CurrentVersion\Windows AppInit_Dlls
+Probably more funky dll stuff, for older win versions
+HLKM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\Notify Key_Handler
+makes ctrl-alt-del launch other stuff
+HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\*.exe Debugger
+I think this changes apps to start other apps?
+HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\WindowsNT\CurrentVersion\Image File Execution Options
+
+Investigate
+HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run
+HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnce
+HKEY_LOCAL_MACHINE\{WOW6432Node}\SOFTWARE\Microsoft\Windows\CurrentVersion\Run
+HKEY_LOCAL_MACHINE\{WOW6432Node}\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce
+HKEY_LOCAL_MACHINE\{WOW6432Node}\Software\Microsoft\Windows\CurrentVersion\Policies\Explore
+These are kinda like autorun things for malware to be in
+HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer\DisallowRun\
+This might prevent some .exe files from running
+DNS registry key
+HKLM\SYSTEM\CurrentControlSet\Services\DNS
+
+HKLM\software\WOW6432Node
+Maybe also funky stuff going on in here?
+Attaching a debugger to a process:
+HKLM\SOFTWARE{\Wow6432Node}\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\
+https://attack.mitre.org/techniques/T1546/012/ 
+Add
+HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa and Set the value of the registry key to: “RunAsPPL”=dword:00000001.
+Should help protect against mimikatz, can also be set in DC GPO
+
+IIS
+inetmgr - i think the files live in c:/inetpub
+Make a backup
+Disable anonymous authentication
+https://www.tutorialspoint.com/windows_server_2012/windows_server_2012_iis_security.htm
+There has to be more things to secure for IIS but i dont know
+Remote Registry
+https://www.itprotoday.com/strategy/how-do-i-restrict-access-remote-registry 
+
+----------------------------------------------------------------------------------------------------------------------------
+
+Mubix something…
+
+Vista - KB975517
+XP - KB958644
+Microsoft Security Essentials
+MBSA
+Nessus
+https://www.autoitscript.com/site/
+
+Some specific Windows Group Policy to set
+Security Options
+Network security: LAN Manager authentication level - Send NTLMv2  response only\refuse NTLM & LM
+Network security: Do not store LAN Manager hash value on next password change - Enabled
+Network access: Do not allow anonymous enumeration of SAM accounts and shares - Enabled
+Network access: Do not allow anonymous enumeration of SAM accounts - Enabled
+Network access: Allow anonymous SID/name translation - Disabled
+Accounts: Rename administrator account - Rename to something unique (but remember it)
+Interactive logon: Message text for users attempting to log on - sometimes an inject
+
+Audit Policy
+Learn to configure windows audit logs and understand the events.
+Audit process tracking - Successes
+Audit account management - Successes, Failures
+Audit logon events - Successes, Failures
+Audit account logon events - Successes, Failures
+
+User Rights Assignment
+Debug programs - Remove all groups/users
+Allow log on through Terminal Services - Leave blank to disallow login via TS even if it has been started.
+
+https://gist.github.com/mubix/fd0c89ec021f70023695
+    Reset
+
+VISTA FTP PAIN
+Can load anonymous login as a built in security principal to the advanced permissions of the ftproot to control what anonymous users can do
+Ensure deny write to anon login for ftp
+Can manage ftp through IIS manager in admin tools
+
+----------------------------------------------------------------------------------------------------------------------------
+
+This is just some random stuff
+
+https://medium.com/blue-team/preventing-mimikatz-attacks-ed283e7ebdd5
+
+
+Logging must be configured through Group Policy as follows:
+Administrative Templates → Windows Components → Windows PowerShell
+
+
+
+
+
+
+Netsh advfirewall firewall set rule group=”Windows Firewall Remote Management” new enable =yes
+    Core is scary
+
+Firewall commands powershell
+
+system level
+in cmd: psexec -i -s cmd.exe
+needs psexec
+sc create cmdsvc binpath= “cmd /K start” type= own type= interact
+sc start cmdsvc
+
+fsmgmt.msc
+see if files are open
+
+https://www.ntweekly.com/2016/12/29/manage-group-policy-using-powershell-on-windows-server-2016/
+this will install the grouppolicy module
+
+
+Managing another server on the domain with msc
+Enable inbound firewall rule “COM+ network access (DCOM-In)”
+New-NetFirewallRule -DisplayName “COM+ network access” -Direction Inbound -LocalPort 135 -Protocol TCP -Action Allow
+
+Enable the COM+ Network Access rule on the Target Machine.
+Computer\HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\COM3
+RemoteAccessEnabled and change the value data from 0 to 1.
+
+Changing Passwords for database services:
+Local mysql via cmd:
+Root: mysqladmin -u root -p'OLDPASSWORD' password NEWPASSWORD
+Regular user: mysql -u root -p >> use mysql; >> SET PASSWORD FOR 'user-name-here'@'hostname-name-here' = PASSWORD('new-password-here'); >> flush privileges;
+
+
+
+If dns is borked
+    can try a 3rd party dns
+
+https://resources.infosecinstitute.com/topic/common-malware-persistence-mechanisms/
+https://github.com/Karneades/malware-persistence
+https://www.n00py.io/2017/01/removing-backdoors-powershell-empire-edition/
+
+https://github.com/PowerShellMafia/PowerSploit
+https://github.com/PowerShellEmpire/PowerTools/blob/master/PowerUp/PowerUp.ps1
+check windows for vulnerabilities
+only for older machines? (not 10 or 2016?)
+https://github.com/rasta-mouse/Sherlock
+vuln check
+
+$AllUsers = $env:ALLUSERSPROFILE
+            if ($AllUsers -notmatch 'ProgramData') {$AllUsers = "$AllUsers\Application Data"}
+            $XMLFiles = Get-ChildItem -Path $AllUsers -Recurse -Include 'Groups.xml','Services.xml','Scheduledtasks.xml','DataSources.xml','Printers.xml','Drivers.xml' -Force -ErrorAction SilentlyContinue
+            if ( -not $XMLFiles ) { Write-Verbose 'not found' }
+            else {
+            Write-Verbose " Found $($XMLFiles | Measure-Object | Select-Object -ExpandProperty Count) files"
+               }
+
+registry keys fun
+    HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\WDigest UseLogonCredential
+        cleartext passwords in memory
+    HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System EnableLUA
+    HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System ConsentPromptBehaviorAdmin
+        disable UAC
+    HKLM\SOFTWARE\Policies\Microsoft\Windows Defender DisableAntiSpyware
+        disable windows defender
+    HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System FilterAdministratorToken
+        allow access to admin shares
+    HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Windows AppInit_DLLs
+    HKLM\SOFTWARE\Wow6432node\microsoft\Windows NT\CurrentVersion\Windows AppInit_Dlls
+        does funky dll stuff - not win8+
+    HLKM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\Notify Key_Handler
+        makes ctrl-alt-del launch other stuff
+    HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\*.exe Debugger
+        I think this changes apps to start other apps?
+There are registry keys that keep sysinternals from running but i have to figure out which ones
+
+HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run
+HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnce
+HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Run
+HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce
+HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Policies\Explore
+
+HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\SecurityProviders\WDigest “UseLogonCredential”(DWORD)
+    Make sure this isn’t there
+    If this key is there, delete or set to 0, change passwords
+
+HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer\DisallowRun\
+
+**HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa and Set the value of the registry key to: “RunAsPPL”=dword:00000001.
+    Should help protect against mimikatz, can also bet set in GPO
+
+HKLM\software\WOW6432Node
+
+HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options
