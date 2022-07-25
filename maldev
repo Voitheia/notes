@@ -1,0 +1,75 @@
+useful tools:
+	pe-bear - https://github.com/hasherezade/pe-bear-releases/releases/tag/0.5.5.5
+	x64dbg - https://x64dbg.com/
+	process hacker - https://processhacker.sourceforge.io/downloads.php
+
+all DLLs need a DllMain instead of a main
+not sure if it needs to be exactly this, but this might be a good base:
+	BOOL APIENTRY DllMain(HMODULE hModule,  DWORD  ul_reason_for_call, LPVOID lpReserved) {
+
+	    switch (ul_reason_for_call)  {
+	    case DLL_PROCESS_ATTACH:
+	    case DLL_PROCESS_DETACH:
+	    case DLL_THREAD_ATTACH:
+	    case DLL_THREAD_DETACH:
+	        break;
+	    }
+	    return TRUE;
+	}
+
+to run a dll function without importing:
+	rundll32 <dllname>,<function to run>
+
+good places to store payload in PE file
+	.text
+		put payload into function
+	.data
+		put payload into global read only variable
+	.rsrc
+		put payload into separate file, tell compiler to include in exe
+		use API call to get to resources section and extract payload
+
+	.text 02.Payload_Storage/01.implant.text
+		payload created within main
+		create new memory buffer with VirtualAlloc
+		copy payload to buffer with RtlMoveMemory
+		mark new buffer as executable with VirtualProtect
+
+		unusual for a process to have memory as RWX, so do in two steps
+			VirtualAlloc as RW, VirtualProtect as RX
+
+		finally, start payload with CreateThread
+		WaitForSingleObject to wait for thread to complete
+
+	.data 02.Payload_Storage/02.implant.data
+		same thing as .text except payload is a global variable
+
+	.rsrc 02.Payload_Storage/03.implant.rsrc
+		same process calls as .text
+		payload and payload length vars init but not created fully
+		uses FindResource, LoadResource, LockResource, SizeofResource to get payload
+		compilation is a bit different to load the resources
+
+function call obfuscation
+	handle = getmodulehandle("sound.dll")
+	getprocaddress(handle, "playsound")
+	then call funciton by address
+
+	make global variable pointer for function to obfuscate
+		BOOL (WINAPI * pVirtualProtect)(LPVOID lpAddress, SIZE_T dwSize, DWORD flNewProtect, PDWORD lpflOldProtect)
+	in function
+		pVirtualProtect = GetProcAddress(GetModuleHandle("kernel32.dll"),"VirtualProtect")
+	change VirtualProtect calls to pVirtualProtect
+
+	however, VirtualProtect will still show up with strings
+		to prevent this, we can encrypt/obfuscate the "VirtualProtect" string with something like xor
+
+classic dll inj (reflective dll inj skips some memory syscalls which is cool but i dont think were doing that for carbon)
+	get loadlibrary address from dropper with getprocaddress
+	virtualallocex in victim
+	writeprocessmemory with path to dll
+	createremotethread with address of loadlibrary and path to dll
+
+sneaky exe
+	WinMain instead of main
+	compile as subsystem:windows instead of subsystem:console
